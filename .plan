@@ -6,3 +6,4 @@ TODO
 * sandbox each client connection in separate environmentsso that they have their own separate root states
 * predefined data shape/structure and validating update-data input against it; prevent setting data that doesn't match the schema; prevent replacing non-leaf nodes (maps), only allow updating leaves
 * transform date strings into dates: https://github.com/metosin/malli/blob/0.2.1/src/malli/transform.cljc#L115
+* use reagent/atom to keep track of derefs and implement client-side subscriptions
