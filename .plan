@@ -1,0 +1,7 @@
+WORKING
+* pass defined actions as data and receive the result
+* HTTP OPTIONS request returns results of (describe-event event)
+* reading and writing data using accessor paths
+TODO
+* sandbox each client connection in separate environmentsso that they have their own separate root states
+* predefined data shape/structure and validating update-data input against it; prevent replacing non-leaf nodes (maps), only allow updating leaves
