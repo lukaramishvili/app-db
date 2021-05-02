@@ -1,6 +1,9 @@
 # app-db
 
-FIXME: description
+self-describing (pre-flight) FSM-based HTTP API server,
+(eventually) allowing easy handler definition (in data).
+
+see .plan for roadmap.
 
 ## Installation
 
