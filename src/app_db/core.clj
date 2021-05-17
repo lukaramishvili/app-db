@@ -67,6 +67,14 @@
           [:value [:or :map :string :boolean :int number?]]]
          #(update-data (map keyword (:path %)) (:value %)))
 
+;; example would-be real world usage:
+;; (receive :add-visit
+;;          [:map
+;;           [:doctor-name :string]
+;;           [:patient-name :string]
+;;           [:visit-time :string]]
+;;          #(update-data :new-visit %))
+
 ;; TODO HTTP HEAD requests for negotiating how the api is to be used before actually calling it.
 ;; request {
 ;;   "ssl-client-cert": null,
