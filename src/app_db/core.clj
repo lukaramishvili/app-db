@@ -26,7 +26,12 @@
 ;; TODO define handlers as datacode
 (def dispatchers (atom {}))
 
-(defn receive [action signature handler]
+(defn describe-server []
+  (for [[k v] @dispatchers]
+    {:name k
+     :signature (:signature v)}))
+
+(defn action [action signature handler]
   (reset! dispatchers
           (assoc @dispatchers
                  action
@@ -56,19 +61,19 @@
   (reset! data
           (assoc-in @data path value)))
 
-(receive :read-data
+(action :read-data
          [:map
           [:path [:vector :string]]]
          #(get-in @data (map keyword (:path %))))
 
-(receive :update-data
+(action :update-data
          [:map
           [:path [:vector :string]]
-          [:value [:or :map :string :boolean :int number?]]]
+          [:value [:or :map :string :boolean :int]]]
          #(update-data (map keyword (:path %)) (:value %)))
 
 ;; example would-be real world usage:
-;; (receive :add-visit
+;; (action :add-visit
 ;;          [:map
 ;;           [:doctor-name :string]
 ;;           [:patient-name :string]
@@ -109,10 +114,14 @@
 (defn handler [request]
   "receives action and payload from request, converts to instructions, and [probably] executes/queues them. TODO return m/explain results as validation errors."
   (if (= (:request-method request) :options)
-    {:status 200
-     :headers {"Content-Type" "application/json"}
-     :body (generate-string
-            (describe-event (keyword (get-in request [:body :action]))))}
+    (let [action (keyword (get-in request [:body :action]))]
+      {:status 200
+       :headers {"Content-Type" "application/json"}
+       :body (generate-string
+              (if action
+                (describe-event action)
+                ;; describe the whole server if no specific action is provided
+                (describe-server)))})
   (let [event-body (:body request)
         event {:action (keyword (:action event-body))
                :payload (:payload event-body)}
@@ -121,7 +130,7 @@
         validation-result (validate-event event)
         valid (true? validation-result)
         result (and valid (dispatch action payload))
-        http-status (if valid 200 419)
+        http-status (if valid 200 422)
         errors (if (not valid) validation-result)]
     {:status http-status
      :headers {
@@ -131,10 +140,10 @@
                }
      :body (generate-string (if valid
                               result
-                              ;; errors ; TODO show real validation errors; even using into throws 'cannot JSON schema object'
+                              ;; errors ; TODO show real validation errors; even using `into` throws 'cannot JSON schema object'
                               {:errors errors}))})))
 
-(def server 
+(def server
   ;; important: creating a var on handler using #', so that re-evaluating handler forms will get applied automatically without restarting the server.
   (jetty/run-jetty (wrap-json-body #'handler {:keywords? true :bigdecimals? true})
                    {:port 3000
