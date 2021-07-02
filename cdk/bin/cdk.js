@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 
-const cdk = require('@aws-cdk/core');
-const { CdkStack } = require('../lib/cdk-stack');
+import cdk from '@aws-cdk/core';
+import { AppDbStack } from '../lib/app-db-stack.js';
 
 const app = new cdk.App();
-new CdkStack(app, 'CdkStack', {
+new AppDbStack(app, 'AppDbStack', {
   /* If you don't specify 'env', this stack will be environment-agnostic.
    * Account/Region-dependent features and context lookups will not work,
    * but a single synthesized template can be deployed anywhere. */

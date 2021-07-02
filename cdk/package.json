@@ -1,6 +1,7 @@
 {
   "name": "cdk",
-  "version": "0.1.0",
+   "version": "0.1.0",
+   "type": "module",
   "bin": {
     "cdk": "bin/cdk.js"
   },
@@ -15,6 +16,7 @@
     "jest": "^26.4.2"
   },
   "dependencies": {
+    "@aws-cdk/aws-s3": "^1.111.0",
     "@aws-cdk/core": "1.109.0"
   }
 }
