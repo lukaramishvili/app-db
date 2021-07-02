@@ -4,6 +4,16 @@ This is a blank project for JavaScript development with CDK.
 
 The `cdk.json` file tells the CDK Toolkit how to execute your app. The build step is not required when using JavaScript.
 
+# Deploying
+
+Configure AWS credentials either in:
+ * ~/.aws/credentials (useful when only having one profile)
+ * via environment variables AWS_ACCESS_KEY_ID and AWS_SECRET_KEY (useful during CI/CD)
+ * via AWS CLI profiles (in ~/.aws/config, add [profile-name] and then `cdk deploy --profile profile-name`)
+
+
+ * download access keys from "My Security Credentials" from AWS Console
+
 ## Useful commands
 
  * `npm run test`         perform the jest unit tests

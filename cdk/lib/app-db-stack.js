@@ -14,7 +14,10 @@ export class AppDbStack extends cdk.Stack {
     // The code that defines your stack goes here
 
     new s3.Bucket(this, 'FileStorageBucket', {
-      versioned: true
+      versioned: true,
+      // uncomment for auto-deleting the bucket after redeployment  
+      // removalPolicy: cdk.RemovalPolicy.DESTROY,
+      // autoDeleteObjects: true,// otherwise S3 won't delete non-empty buckets
     });
   }
 }
