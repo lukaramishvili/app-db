@@ -1,7 +1,7 @@
 {
-  "name": "cdk",
-   "version": "0.1.0",
-   "type": "module",
+  "name": "app-db-cdk",
+  "version": "0.1.0",
+  "type": "module",
   "bin": {
     "cdk": "bin/cdk.js"
   },
@@ -16,6 +16,12 @@
     "jest": "^26.4.2"
   },
   "dependencies": {
+    "@aws-cdk/aws-apigateway": "^1.111.0",
+    "@aws-cdk/aws-cloudfront": "^1.111.0",
+    "@aws-cdk/aws-cloudfront-origins": "^1.111.0",
+    "@aws-cdk/aws-cognito": "^1.111.0",
+    "@aws-cdk/aws-dynamodb": "^1.111.0",
+    "@aws-cdk/aws-lambda": "^1.111.0",
     "@aws-cdk/aws-s3": "^1.111.0",
     "@aws-cdk/core": "1.109.0"
   }
