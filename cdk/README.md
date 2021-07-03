@@ -33,4 +33,8 @@ Configure AWS credentials either in:
 
 # TODO
 
- * get deployed resource names and execute code (e.g. registering webhooks, etc)
+ * get deployed resource names inside lambdas (e.g. registering webhooks, etc). Currently the Outputs (including API URL) are output by the `cdk deploy ..` command.
+ * integrate CloudWatch logs into a service (to get the logs out of AWS automatically), e.g. Slack.
+ * unit and integration tests for synthesized stacks
+ * from best [practices](https://docs.aws.amazon.com/cdk/latest/guide/best-practices.html): Consider keeping stateful resources (like databases) in a separate stack from stateless resources. You can then turn on termination protection on the stateful stack, and can freely destroy or create multiple copies of the stateless stack without risk of data loss.
+ * add metrics and alarms for monitoring usage and business metrics.
