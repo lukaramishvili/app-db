@@ -145,8 +145,9 @@ export class AppDbStack extends cdk.Stack {
 
     /** Api Gateway docs: https://docs.aws.amazon.com/cdk/api/latest/docs/aws-apigateway-readme.html#aws-lambda-backed-apis */
     /** limiting the API with API Keys: https://docs.aws.amazon.com/cdk/api/latest/docs/aws-apigateway-readme.html#usage-plan--api-keys */
-    const api = new apigateway.LambdaRestApi(this, awsName('myapi'), {
+    const api = new apigateway.LambdaRestApi(this, awsName('app-db-rest-api'), {
       handler: appDbApiLambda,
+      name: awsName('app-db-api'),
       // we can also specify `proxy: false` and define all the GET/POST/etc routes manually (see the #aws-lambda-backed-apis docs)
     });
   }
