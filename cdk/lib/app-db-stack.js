@@ -168,9 +168,9 @@ export class AppDbStack extends cdk.Stack {
     // TODO parentHostingZone doesn't seem to actually come from AWS describing resource, so the retrieve method must be changed
     // guide: https://github.com/aws/aws-cdk/issues/8776#issue-647025391
     // undefined for now: console.log(parentHostingZone.nameServers, parentHostingZone.hostedZoneNameServers);
-    // const hostedZoneForAPI = new route53.HostedZone(this, awsName('api-hosted-zone'), {
-    //   zoneName: AppConfig.rootDomainName,
-    // });
+    const hostedZoneForAPI = new route53.HostedZone(this, awsName('api-hosted-zone'), {
+      zoneName: currentStageAPIDomainName,
+    });
     // delegate the hosted zone to the parent hosted zone
     // const zoneDelegation = new route53.ZoneDelegationRecord(this, awsName('zone-delegation'), {
     //   zone: parentHostingZone,
@@ -208,6 +208,7 @@ export class AppDbStack extends cdk.Stack {
     //   // securityPolicy: apigw.SecurityPolicy.TLS_1_2
     // });
     // define api[-stage].example.com
+    // TO UNCOMMENT THIS, comment domainName: {} in api definition above
     // const apiDomain = new apigateway.DomainName(this, awsName('api-domain'), {
     //   domainName: currentStageAPIDomainName,
     //   certificate: domainCertificate,
@@ -220,7 +221,7 @@ export class AppDbStack extends cdk.Stack {
     //     domain.addBasePathMapping( this.api, { basePath: basePath });
     /** create a DNS A record for the domain */
     new route53.ARecord(this, awsName('api-domain-alias-record'), {
-      zone: parentHostingZone,//hostedZoneForAPI,
+      zone: hostedZoneForAPI,
       target: route53.RecordTarget.fromAlias(new route53Targets.ApiGateway(api))
     });
 

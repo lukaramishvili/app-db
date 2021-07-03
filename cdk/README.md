@@ -68,6 +68,8 @@ Configure AWS credentials either in:
  * get the existing parent zone from AWS
  * fix that right now the API Gateway is created in the parent zone and not the new api[-stage].example.com zone
  * add ARecords for api[-stage].example.com and delegate the NS to parent zone
+ * fix zone delegation (commented, may need reversing zone arguments); right now, api.app-db.org is created but has separate, generated nameservers and isn't accessible.
+ * 
  + create an existing ACM certificate in AWS Console and add config to reference it using its Arn
  + [wasn't needed] if `HostedZone.fromLookup` turns out to be needed, add the following text to "Setting up a new project" checklist above:
 > fow using own domains, configure AWS account ID and region in bin/cdk.js (because, for using own domain, it's required to have an existing hosted zone and delegate to it, because otherwise NS records would change on redeploy, and looking up an existing hosted zone is only possible in specific regions).
