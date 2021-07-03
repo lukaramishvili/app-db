@@ -6,7 +6,8 @@ const config = {
   appName: 'app-db',
   productionStageName: 'prod',
   rootDomainName: 'app-db.org',
-  rootDomainHostedZoneId: 'Z05567712LDUM8KYGNQNI',
+  rootDomainHostedZoneId: process.env.HOSTED_ZONE_ID || 'Z05567712LDUM8KYGNQNI',
+  rootDomainCertificateArn: process.env.DOMAIN_CERTIFICATE_ARN || 'arn:aws:acm:eu-central-1:534420866349:certificate/e6bcdd32-3aa9-428a-90ae-7c456eba9f05',
 };
 export default config;
 
@@ -16,4 +17,4 @@ export const awsResourceName = (appName, stage, resourceName) => `${appName}-${s
 /** construct a per-stage domain name */
 export const stageDomainName = (stage) => stage === config.productionStageName ? config.domainName : `${stage}.${config.rootDomainName}`;
 /** api.example.com or e.g. api-staging.example.com */
-export const stageDomainNameForAPI = (stage) => `api${stage !== config.productionStageName ? '-' + stage : ''}.${config.rootDomainName}`;
+export const stageDomainNameForAPI = (stage) => stage === config.productionStageName ? `api.${config.rootDomainName}` : `api-${stage}.${config.rootDomainName}`;

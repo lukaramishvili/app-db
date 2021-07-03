@@ -25,8 +25,9 @@ The `cdk.json` file tells the CDK Toolkit how to execute your app. The build ste
 
  * before the first deployment, run `cdk bootstrap aws://${accountNumber}/${regionName}` if (mostly) your stack contains AWS Assets (this command is necessary to create resources to hold e.g. lambda .zip files needed for deployment).
  * to make use of your own domains, you have to create a hosted zone from AWS Console, point your external DNS to it, and delegate the CDK-created hosted zone to it.
- * [TODO] create a new ACM Certificate and reference it using its Arn, instead of creating a new certificate during every deployment
- * configure `rootDomainHostedZoneId` in lib/app-db-stack.js
+ * create a new wildcard ACM Certificate and reference it using its Arn (so that CDK doesn't create a new certificate during every deployment), by setting the DOMAIN_CERTIFICATE_ARN env var
+ * configure `ROOT_DOMAIN_HOSTED_ZONE_ID` env var (needed in lib/app-db-stack.js)
+ * configure `DOMAIN_CERTIFICATE_ARN`
 
 # Gotchas
 
@@ -55,6 +56,7 @@ Configure AWS credentials either in:
  * `cdk deploy ...` will write the Outputs to the file `cdk.out/app-db-prod-stack.template.json`. use that to perform post-deploy operations like updating endpoints, registering webhooks, etc.
  * for that purpose, you can also use a command like `aws cloudformation describe-stacks --profile luka-personal --stack-name app-db-prod-stack | jq '.Stacks[0].Outputs'`
  * integrate CloudWatch logs into a service (to get the logs out of AWS automatically), e.g. Slack.
+ * prepare all env variables in CI/CD and throw if they're not provided
  * unit and integration tests for synthesized stacks
  * from best [practices](https://docs.aws.amazon.com/cdk/latest/guide/best-practices.html): Consider keeping stateful resources (like databases) in a separate stack from stateless resources. You can then turn on termination protection on the stateful stack, and can freely destroy or create multiple copies of the stateless stack without risk of data loss.
  * add metrics and alarms for monitoring usage and business metrics.
@@ -63,7 +65,9 @@ Configure AWS credentials either in:
 
 # Branch TODO
 
- * get the existing parent zone from AWS and delegate 
- * create an existing ACM certificate in AWS Console and add config to reference it using its Arn
- * if `HostedZone.fromLookup` turns out to be needed, add the following text to "Setting up a new project" checklist above:
+ * get the existing parent zone from AWS
+ * fix that right now the API Gateway is created in the parent zone and not the new api[-stage].example.com zone
+ * add ARecords for api[-stage].example.com and delegate the NS to parent zone
+ + create an existing ACM certificate in AWS Console and add config to reference it using its Arn
+ + [wasn't needed] if `HostedZone.fromLookup` turns out to be needed, add the following text to "Setting up a new project" checklist above:
 > fow using own domains, configure AWS account ID and region in bin/cdk.js (because, for using own domain, it's required to have an existing hosted zone and delegate to it, because otherwise NS records would change on redeploy, and looking up an existing hosted zone is only possible in specific regions).

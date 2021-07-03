@@ -147,20 +147,6 @@ export class AppDbStack extends cdk.Stack {
       },
       // ...
     });
-
-    /** Api Gateway docs: https://docs.aws.amazon.com/cdk/api/latest/docs/aws-apigateway-readme.html#aws-lambda-backed-apis */
-    /** limiting the API with API Keys: https://docs.aws.amazon.com/cdk/api/latest/docs/aws-apigateway-readme.html#usage-plan--api-keys */
-    const api = new apigateway.LambdaRestApi(this, awsName('app-db-rest-api'), {
-      handler: appDbApiLambda,
-      name: awsName('app-db-api'),
-      // route API requests from the app domain to this Api Gateway
-      // This will define a DomainName resource for you, along with a BasePathMapping from the root of the domain to the deployment stage of the API. This is a common set up.
-      // domainName: {
-      //   domainName: currentStageAPIDomainName,
-      //   // TODO certificate: acmCertificateForExampleCom,
-      // },
-      // we can also specify `proxy: false` and define all the GET/POST/etc routes manually (see the #aws-lambda-backed-apis docs)
-    });
     /** create a "hosted zone" for this domain (needed by API config)
      * since a hosted zone created by CDK will change name servers on every deployment, we have to delegate this hosted zone to an existing hosted zone
      * https://docs.aws.amazon.com/cdk/api/latest/docs/@aws-cdk_aws-route53.HostedZone.html#static-fromwbrlookupscope-id-query
@@ -171,53 +157,70 @@ export class AppDbStack extends cdk.Stack {
     // if(!AppConfig.rootDomainHostedZoneId){
     // console.warn('missing required root domain zone id');
     //}
-    const existingHostedZone = route53.HostedZone.fromHostedZoneAttributes(this, awsName('parent-hosted-zone'), {
+    const parentHostingZone = route53.HostedZone.fromHostedZoneAttributes(this, awsName('parent-hosted-zone'), {
       hostedZoneId: AppConfig.rootDomainHostedZoneId,
       zoneName: AppConfig.rootDomainName,
     });
     // I guess fromLookup is sufficient for zone delegation
-    // const existingHostedZone = route53.HostedZone.fromLookup(this, awsName('parent-zone'), {
+    // const parentHostingZone = route53.HostedZone.fromLookup(this, awsName('parent-zone'), {
     //   domainName: AppConfig.rootDomainName
     // });
-    // TODO existingHostedZone doesn't seem to actually come from AWS describing resource, so the retrieve method must be changed
+    // TODO parentHostingZone doesn't seem to actually come from AWS describing resource, so the retrieve method must be changed
     // guide: https://github.com/aws/aws-cdk/issues/8776#issue-647025391
-    // undefined for now: console.log(existingHostedZone.nameServers, existingHostedZone.hostedZoneNameServers);
-    const hostedZoneForAPI = new route53.HostedZone(this, awsName('api-hosted-zone'), {
-      zoneName: AppConfig.rootDomainName,
-    });
+    // undefined for now: console.log(parentHostingZone.nameServers, parentHostingZone.hostedZoneNameServers);
+    // const hostedZoneForAPI = new route53.HostedZone(this, awsName('api-hosted-zone'), {
+    //   zoneName: AppConfig.rootDomainName,
+    // });
     // delegate the hosted zone to the parent hosted zone
-    const zoneDelegation = new route53.ZoneDelegationRecord(this, awsName('zone-delegation'), {
-      zone: existingHostedZone,
-      // we assume the nameservers are present: https://github.com/aws/aws-cdk/issues/1847#issuecomment-466954662
-      nameServers: hostedZoneForAPI.hostedZoneNameServers,
+    // const zoneDelegation = new route53.ZoneDelegationRecord(this, awsName('zone-delegation'), {
+    //   zone: parentHostingZone,
+    //   // we assume the nameservers are present: https://github.com/aws/aws-cdk/issues/1847#issuecomment-466954662
+    //   nameServers: hostedZoneForAPI.hostedZoneNameServers,
+    // });
+    // retrieve existing validated certificate instead of creating it
+    const domainCertificate = acm.Certificate.fromCertificateArn(this, awsName('domain-certificate'), AppConfig.rootDomainCertificateArn);
+    // const domainCertificate = new acm.Certificate(this, awsName('api-certificate'), {
+    //   domainName: AppConfig.rootDomainName,
+    //   validation: acm.CertificateValidation.fromDns(hostedZoneForAPI),
+    // });
+
+    /** Api Gateway docs: https://docs.aws.amazon.com/cdk/api/latest/docs/aws-apigateway-readme.html#aws-lambda-backed-apis */
+    /** limiting the API with API Keys: https://docs.aws.amazon.com/cdk/api/latest/docs/aws-apigateway-readme.html#usage-plan--api-keys */
+    const api = new apigateway.LambdaRestApi(this, awsName('app-db-rest-api'), {
+      handler: appDbApiLambda,
+      name: awsName('app-db-api'),
+      // route API requests from the app domain to this Api Gateway
+      // This will define a DomainName resource for you, along with a BasePathMapping from the root of the domain to the deployment stage of the API. This is a common set up.
+      domainName: {
+        domainName: currentStageAPIDomainName,
+        certificate: domainCertificate,
+      },
+      // we can also specify `proxy: false` and define all the GET/POST/etc routes manually (see the #aws-lambda-backed-apis docs)
     });
-    // TODO retrieve existing validated certificate instead of creating it
-    const domainCertificate = new acm.Certificate(this, awsName('api-certificate'), {
-      domainName: AppConfig.rootDomainName,
-      validation: acm.CertificateValidation.fromDns(hostedZoneForAPI),
-    });
+    
     /** read this for a guide to using domains: https://gregorypierce.medium.com/cdk-restapi-custom-domains-554175a4b1f6 */
+    /** custom domain certificate docs: https://docs.aws.amazon.com/apigateway/latest/developerguide/how-to-custom-domains.html */
     /** we need to associate the API with the root domain first, otherwise CDK will not publish the template */
-    api.addDomainName(awsName('root-domain-name'), {
-      domainName: AppConfig.rootDomainName,
-      certificate: domainCertificate,
-      // endpointType: apigw.EndpointType.EDGE, // default is REGIONAL
-      // securityPolicy: apigw.SecurityPolicy.TLS_1_2
-    });
+    // api.addDomainName(awsName('root-domain-name'), {
+    //   domainName: AppConfig.rootDomainName,
+    //   certificate: domainCertificate,
+    //   // endpointType: apigw.EndpointType.EDGE, // default is REGIONAL
+    //   // securityPolicy: apigw.SecurityPolicy.TLS_1_2
+    // });
     // define api[-stage].example.com
-    const apiDomain = new apigateway.DomainName(this, awsName('api-domain'), {
-      domainName: currentStageAPIDomainName,
-      certificate: domainCertificate,
-      // endpointType: apigw.EndpointType.EDGE, // default is REGIONAL
-      // securityPolicy: apigw.SecurityPolicy.TLS_1_2
-    });
+    // const apiDomain = new apigateway.DomainName(this, awsName('api-domain'), {
+    //   domainName: currentStageAPIDomainName,
+    //   certificate: domainCertificate,
+    //   // endpointType: apigw.EndpointType.EDGE, // default is REGIONAL
+    //   // securityPolicy: apigw.SecurityPolicy.TLS_1_2
+    // });
     /** add base path mapping (api.example.com/BASE_PATH) */
     // var basePath = props.basePath != undefined? props.basePath : props.name;
     //     basePath = basePath.toLowerCase().replace(/[^a-zA-Z0-9]/g, '');
     //     domain.addBasePathMapping( this.api, { basePath: basePath });
     /** create a DNS A record for the domain */
     new route53.ARecord(this, awsName('api-domain-alias-record'), {
-      zone: hostedZoneForAPI,
+      zone: parentHostingZone,//hostedZoneForAPI,
       target: route53.RecordTarget.fromAlias(new route53Targets.ApiGateway(api))
     });
 
