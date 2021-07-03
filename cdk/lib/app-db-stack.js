@@ -1,6 +1,7 @@
 import cdk from '@aws-cdk/core';
 import * as s3 from'@aws-cdk/aws-s3';
 import * as dynamodb from '@aws-cdk/aws-dynamodb';
+import * as cognito from '@aws-cdk/aws-cognito';
 import * as lambda from '@aws-cdk/aws-lambda';
 import * as apigateway from '@aws-cdk/aws-apigateway';
 import * as cloudfront from '@aws-cdk/aws-cloudfront';
@@ -48,6 +49,36 @@ export class AppDbStack extends cdk.Stack {
     });
     new cloudfront.Distribution(this, awsName('assets-dist'), {
       defaultBehavior: { origin: new origins.S3Origin(assetsBucket) },
+    });
+
+    /** docs:
+     * https://docs.aws.amazon.com/cdk/api/latest/docs/aws-cognito-readme.html
+     * https://docs.aws.amazon.com/cognito/latest/developerguide/user-pool-settings-attributes.html
+     */
+    const users = new cognito.UserPool(this, awsName('user-pool'), {
+      userPoolName: awsName('user-pool'),
+      // enable registration
+      selfSignUpEnabled: true,
+      // enable signing in with either username or email
+      signInAliases: {
+        username: true,
+        email: true
+      },
+      // from docs: Phone numbers and email addresses only become active aliases for a user after the phone numbers and email addresses are verified. We therefore recommend that you choose automatic verification of email addresses and phone numbers if you use them as aliases.
+      autoVerify: { email: true, phone: true },
+      // enable user verification
+      userVerification: {
+        emailSubject: 'Verify your email for our awesome app!',
+        emailBody: 'Thanks for signing up to our awesome app! Your verification code is {####}',
+        emailStyle: cognito.VerificationEmailStyle.CODE,
+        smsMessage: 'Thanks for signing up to our awesome app! Your verification code is {####}',
+      },
+      // enable admins inviting users
+      userInvitation: {
+        emailSubject: 'Invite to join our awesome app!',
+        emailBody: 'Hello {username}, you have been invited to join our awesome app! Your temporary password is {####}',
+        smsMessage: 'Your temporary password for our awesome app is {####}'
+      },
     });
 
     /** general docs: https://docs.aws.amazon.com/cdk/api/latest/docs/aws-dynamodb-readme.html */
@@ -106,6 +137,7 @@ export class AppDbStack extends cdk.Stack {
       environment: {
         UPLOADS_BUCKET_NAME: uploadsBucket.bucketName,
         FACTS_TABLE_NAME:    factsTable.tableName,
+        USER_POOL_ARN:       users.userPoolArn,
       },
       // ...
     });
