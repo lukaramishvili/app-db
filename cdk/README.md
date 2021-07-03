@@ -25,6 +25,7 @@ The `cdk.json` file tells the CDK Toolkit how to execute your app. The build ste
 
  * before the first deployment, run `cdk bootstrap aws://${accountNumber}/${regionName}` if (mostly) your stack contains AWS Assets (this command is necessary to create resources to hold e.g. lambda .zip files needed for deployment).
  * to make use of your own domains, you have to create a hosted zone from AWS Console, point your external DNS to it, and delegate the CDK-created hosted zone to it.
+ * [TODO] create a new ACM Certificate and reference it using its Arn, instead of creating a new certificate during every deployment
 
 # Gotchas
 
@@ -47,7 +48,7 @@ Configure AWS credentials either in:
  * `cdk synth`            emits the synthesized CloudFormation template
  * `cdk destroy`          removes the stack from AWS
 
-# TODO
+# Project TODO
 
  * add configuration so that static DNS will work on redeployed Rest Api endpoints: https://docs.aws.amazon.com/cdk/api/latest/docs/aws-apigateway-readme.html#custom-domains
  * `cdk deploy ...` will write the Outputs to the file `cdk.out/app-db-prod-stack.template.json`. use that to perform post-deploy operations like updating endpoints, registering webhooks, etc.
@@ -58,3 +59,8 @@ Configure AWS credentials either in:
  * add metrics and alarms for monitoring usage and business metrics.
  * add [API Gateway v2](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/AWS_ApiGatewayV2.html) support for WebSocket APIs: https://docs.aws.amazon.com/cdk/api/latest/docs/aws-apigatewayv2-readme.html#websocket-api
  * add IAM user groups like dev, tester, etc (only <10 policies (e.g. SQS, S3, Cognito) are allowed per IAM group, so split the groups (<300 per account) to add acesss to >=10 resources, or create an Inline Policy as a quick measure (from https://aws.amazon.com/premiumsupport/knowledge-center/iam-increase-policy-size/)).
+
+# Branch TODO
+
+ * get the existing parent zone from AWS and delegate 
+ * create an existing ACM certificate in AWS Console and add config to reference it using its Arn

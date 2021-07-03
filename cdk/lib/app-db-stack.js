@@ -172,6 +172,8 @@ export class AppDbStack extends cdk.Stack {
       hostedZoneId: AppConfig.rootDomainHostedZoneId,
       zoneName: AppConfig.rootDomainName,
     });
+    // TODO existingHostedZone doesn't seem to actually come from AWS describing resource, so the retrieve method must be changed
+    console.log(existingHostedZone.nameServers);
     const hostedZoneForAPI = new route53.HostedZone(this, awsName('api-hosted-zone'), {
       zoneName: AppConfig.rootDomainName,
     });
