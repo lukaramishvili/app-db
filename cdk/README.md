@@ -1,19 +1,35 @@
 # Welcome to your CDK JavaScript project!
 
-This is a blank project for JavaScript development with CDK.
+This is a template project for JavaScript development with CDK.
+
+It contains CDK instructions for common use-cases (database, users, CDN, APIs), configured for the `app-db` project. The resources are defined in ./lib/app-db-stack.js
+
+As its next phase, the app-db-stack.js file will be auto-generated from project source code (it's too early for that; now the next milestone is hosting Clojure@GraalVM lambdas).
 
 The `cdk.json` file tells the CDK Toolkit how to execute your app. The build step is not required when using JavaScript.
+
+# Features
+
+ * per-stage deployments, domains (HTTPS) and resources (dev, staging, prod, etc)
+ * Datomic-like dynamoDb database
+ * API routes bound to domain names
+ * uploads to S3
+ * CDN for static assets
 
 # Getting started
 
  * Hello world guide: https://docs.aws.amazon.com/cdk/latest/guide/hello_world.html
  * Defining AWS resources: https://docs.aws.amazon.com/cdk/latest/guide/resources.html
+ 
+# Setting up a new project
+
+ * before the first deployment, run `cdk bootstrap aws://${accountNumber}/${regionName}` if (mostly) your stack contains AWS Assets (this command is necessary to create resources to hold e.g. lambda .zip files needed for deployment).
+ * to make use of your own domains, you have to create a hosted zone from AWS Console, point your external DNS to it, and delegate the CDK-created hosted zone to it.
 
 # Gotchas
 
- * always use the `awsResourceName` function in 'cdk-app-config' for building conflict-free AWS resource names between multiple deployed apps on the same AWS account.
+ * always use the `awsResourceName` function (or `awsName` shorthand) in 'cdk-app-config' for building conflict-free AWS resource names between multiple deployed apps on the same AWS account.
  * always import .js files with full path (`import ... 'file.js'), `type: "module"` import method in package.json requires it.
- * before the first deployment, run `cdk bootstrap aws://${accountNumber}/${regionName}` if (mostly) your stack contains AWS Assets (this command is necessary to create resources to hold e.g. lambda .zip files needed for deployment).
 
 # Deploying
 
@@ -33,7 +49,9 @@ Configure AWS credentials either in:
 
 # TODO
 
- * use a command like `aws cloudformation describe-stacks --profile luka-personal --stack-name app-db-prod-stack | jq '.Stacks[0].Outputs'` to get the stack Outputs and perform additional work like registering webhooks, etc. Currently the Outputs (including API URL) are output by the `cdk deploy ..` command.
+ * add configuration so that static DNS will work on redeployed Rest Api endpoints: https://docs.aws.amazon.com/cdk/api/latest/docs/aws-apigateway-readme.html#custom-domains
+ * `cdk deploy ...` will write the Outputs to the file `cdk.out/app-db-prod-stack.template.json`. use that to perform post-deploy operations like updating endpoints, registering webhooks, etc.
+ * for that purpose, you can also use a command like `aws cloudformation describe-stacks --profile luka-personal --stack-name app-db-prod-stack | jq '.Stacks[0].Outputs'`
  * integrate CloudWatch logs into a service (to get the logs out of AWS automatically), e.g. Slack.
  * unit and integration tests for synthesized stacks
  * from best [practices](https://docs.aws.amazon.com/cdk/latest/guide/best-practices.html): Consider keeping stateful resources (like databases) in a separate stack from stateless resources. You can then turn on termination protection on the stateful stack, and can freely destroy or create multiple copies of the stateless stack without risk of data loss.

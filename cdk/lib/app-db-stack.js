@@ -6,9 +6,12 @@ import * as lambda from '@aws-cdk/aws-lambda';
 import * as apigateway from '@aws-cdk/aws-apigateway';
 import * as cloudfront from '@aws-cdk/aws-cloudfront';
 import * as origins from '@aws-cdk/aws-cloudfront-origins';
+import * as route53 from '@aws-cdk/aws-route53';
+import * as route53Targets from '@aws-cdk/aws-route53-targets';
+import * as acm from '@aws-cdk/aws-certificatemanager';
 import path from 'path';
 
-import AppConfig, { awsResourceName } from '../cdk-app-config.js';
+import AppConfig, { awsResourceName, stageDomainNameForAPI } from '../cdk-app-config.js';
 
 // TODO detect from build environment (duplicated in bin/cdk.js)
 const stage = 'prod';
@@ -27,6 +30,8 @@ export class AppDbStack extends cdk.Stack {
     super(scope, id, props);
 
     // The code that defines your stack goes here
+
+    const currentStageAPIDomainName = stageDomainNameForAPI(stage);
 
     const uploadsBucket = new s3.Bucket(this, awsName('uploads-bucket'), {
       versioned: true,
@@ -148,8 +153,65 @@ export class AppDbStack extends cdk.Stack {
     const api = new apigateway.LambdaRestApi(this, awsName('app-db-rest-api'), {
       handler: appDbApiLambda,
       name: awsName('app-db-api'),
+      // route API requests from the app domain to this Api Gateway
+      // This will define a DomainName resource for you, along with a BasePathMapping from the root of the domain to the deployment stage of the API. This is a common set up.
+      // domainName: {
+      //   domainName: currentStageAPIDomainName,
+      //   // TODO certificate: acmCertificateForExampleCom,
+      // },
       // we can also specify `proxy: false` and define all the GET/POST/etc routes manually (see the #aws-lambda-backed-apis docs)
     });
+    /** create a "hosted zone" for this domain (needed by API config)
+     * since a hosted zone created by CDK will change name servers on every deployment, we have to delegate this hosted zone to an existing hosted zone
+     * https://docs.aws.amazon.com/cdk/api/latest/docs/@aws-cdk_aws-route53.HostedZone.html#static-fromwbrlookupscope-id-query
+     * Gotcha: HostedZone.fromLookup can work but requires explicitly setting region and account ID on the Stack Resource: https://github.com/aws/aws-cdk/issues/5547#issuecomment-569485100
+     * Gotcha: HostedZone.fromHostedZoneId/Name doesn't actually get data from AWS, but creates a mock object: https://github.com/aws/aws-cdk/issues/8406#issuecomment-641052225
+     * so HostedZone.fromHostedZoneAttributes is the most straightforward way to reference an existing hosted zone.
+     */
+    const existingHostedZone = route53.HostedZone.fromHostedZoneAttributes(this, awsName('parent-hosted-zone'), {
+      hostedZoneId: AppConfig.rootDomainHostedZoneId,
+      zoneName: AppConfig.rootDomainName,
+    });
+    const hostedZoneForAPI = new route53.HostedZone(this, awsName('api-hosted-zone'), {
+      zoneName: AppConfig.rootDomainName,
+    });
+    // delegate the hosted zone to the parent hosted zone
+    const zoneDelegation = new route53.ZoneDelegationRecord(this, awsName('zone-delegation'), {
+      zone: existingHostedZone,
+      delegatedZoneName: hostedZoneForAPI.zoneName,
+      // we assume the nameservers are present: https://github.com/aws/aws-cdk/issues/1847#issuecomment-466954662
+      nameServers: existingHostedZone.nameServers
+    });
+    // TODO retrieve existing validated certificate instead of creating it
+    const domainCertificate = new acm.Certificate(this, awsName('api-certificate'), {
+      domainName: AppConfig.rootDomainName,
+      validation: acm.CertificateValidation.fromDns(hostedZoneForAPI),
+    });
+    /** read this for a guide to using domains: https://gregorypierce.medium.com/cdk-restapi-custom-domains-554175a4b1f6 */
+    /** we need to associate the API with the root domain first, otherwise CDK will not publish the template */
+    api.addDomainName(awsName('root-domain-name'), {
+      domainName: AppConfig.rootDomainName,
+      certificate: domainCertificate,
+      // endpointType: apigw.EndpointType.EDGE, // default is REGIONAL
+      // securityPolicy: apigw.SecurityPolicy.TLS_1_2
+    });
+    // define api[-stage].example.com
+    const apiDomain = new apigateway.DomainName(this, awsName('api-domain'), {
+      domainName: currentStageAPIDomainName,
+      certificate: domainCertificate,
+      // endpointType: apigw.EndpointType.EDGE, // default is REGIONAL
+      // securityPolicy: apigw.SecurityPolicy.TLS_1_2
+    });
+    /** add base path mapping (api.example.com/BASE_PATH) */
+    // var basePath = props.basePath != undefined? props.basePath : props.name;
+    //     basePath = basePath.toLowerCase().replace(/[^a-zA-Z0-9]/g, '');
+    //     domain.addBasePathMapping( this.api, { basePath: basePath });
+    /** create a DNS A record for the domain */
+    new route53.ARecord(this, awsName('api-domain-alias-record'), {
+      zone: hostedZoneForAPI,
+      target: route53.RecordTarget.fromAlias(new route53Targets.ApiGateway(api))
+    });
+
   }
 }
 
