@@ -54,6 +54,7 @@ export class AppDbStack extends cdk.Stack {
     /** docs:
      * https://docs.aws.amazon.com/cdk/api/latest/docs/aws-cognito-readme.html
      * https://docs.aws.amazon.com/cognito/latest/developerguide/user-pool-settings-attributes.html
+     * https://docs.aws.amazon.com/cdk/api/latest/docs/@aws-cdk_aws-cognito.UserPool.html
      */
     const users = new cognito.UserPool(this, awsName('user-pool'), {
       userPoolName: awsName('user-pool'),
@@ -77,7 +78,7 @@ export class AppDbStack extends cdk.Stack {
       userInvitation: {
         emailSubject: 'Invite to join our awesome app!',
         emailBody: 'Hello {username}, you have been invited to join our awesome app! Your temporary password is {####}',
-        smsMessage: 'Your temporary password for our awesome app is {####}'
+        smsMessage: 'Your temporary password for our awesome app is {username} : {####}'
       },
     });
 
@@ -146,9 +147,10 @@ export class AppDbStack extends cdk.Stack {
     /** limiting the API with API Keys: https://docs.aws.amazon.com/cdk/api/latest/docs/aws-apigateway-readme.html#usage-plan--api-keys */
     const api = new apigateway.LambdaRestApi(this, awsName('myapi'), {
       handler: appDbApiLambda,
-      // we can also specify `proxy: false` and define all the routes manually
+      // we can also specify `proxy: false` and define all the GET/POST/etc routes manually (see the #aws-lambda-backed-apis docs)
     });
   }
 }
 
+// not with ES modules (enabled in package.json@type:"module"
 //module.exports = { AppDbStack }
