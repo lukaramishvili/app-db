@@ -26,6 +26,7 @@ The `cdk.json` file tells the CDK Toolkit how to execute your app. The build ste
  * before the first deployment, run `cdk bootstrap aws://${accountNumber}/${regionName}` if (mostly) your stack contains AWS Assets (this command is necessary to create resources to hold e.g. lambda .zip files needed for deployment).
  * to make use of your own domains, you have to create a hosted zone from AWS Console, point your external DNS to it, and delegate the CDK-created hosted zone to it.
  * [TODO] create a new ACM Certificate and reference it using its Arn, instead of creating a new certificate during every deployment
+ * configure `rootDomainHostedZoneId` in lib/app-db-stack.js
 
 # Gotchas
 
@@ -64,3 +65,5 @@ Configure AWS credentials either in:
 
  * get the existing parent zone from AWS and delegate 
  * create an existing ACM certificate in AWS Console and add config to reference it using its Arn
+ * if `HostedZone.fromLookup` turns out to be needed, add the following text to "Setting up a new project" checklist above:
+> fow using own domains, configure AWS account ID and region in bin/cdk.js (because, for using own domain, it's required to have an existing hosted zone and delegate to it, because otherwise NS records would change on redeploy, and looking up an existing hosted zone is only possible in specific regions).

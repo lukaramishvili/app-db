@@ -168,21 +168,28 @@ export class AppDbStack extends cdk.Stack {
      * Gotcha: HostedZone.fromHostedZoneId/Name doesn't actually get data from AWS, but creates a mock object: https://github.com/aws/aws-cdk/issues/8406#issuecomment-641052225
      * so HostedZone.fromHostedZoneAttributes is the most straightforward way to reference an existing hosted zone.
      */
+    // if(!AppConfig.rootDomainHostedZoneId){
+    // console.warn('missing required root domain zone id');
+    //}
     const existingHostedZone = route53.HostedZone.fromHostedZoneAttributes(this, awsName('parent-hosted-zone'), {
       hostedZoneId: AppConfig.rootDomainHostedZoneId,
       zoneName: AppConfig.rootDomainName,
     });
+    // I guess fromLookup is sufficient for zone delegation
+    // const existingHostedZone = route53.HostedZone.fromLookup(this, awsName('parent-zone'), {
+    //   domainName: AppConfig.rootDomainName
+    // });
     // TODO existingHostedZone doesn't seem to actually come from AWS describing resource, so the retrieve method must be changed
-    console.log(existingHostedZone.nameServers);
+    // guide: https://github.com/aws/aws-cdk/issues/8776#issue-647025391
+    // undefined for now: console.log(existingHostedZone.nameServers, existingHostedZone.hostedZoneNameServers);
     const hostedZoneForAPI = new route53.HostedZone(this, awsName('api-hosted-zone'), {
       zoneName: AppConfig.rootDomainName,
     });
     // delegate the hosted zone to the parent hosted zone
     const zoneDelegation = new route53.ZoneDelegationRecord(this, awsName('zone-delegation'), {
       zone: existingHostedZone,
-      delegatedZoneName: hostedZoneForAPI.zoneName,
       // we assume the nameservers are present: https://github.com/aws/aws-cdk/issues/1847#issuecomment-466954662
-      nameServers: existingHostedZone.nameServers
+      nameServers: hostedZoneForAPI.hostedZoneNameServers,
     });
     // TODO retrieve existing validated certificate instead of creating it
     const domainCertificate = new acm.Certificate(this, awsName('api-certificate'), {
