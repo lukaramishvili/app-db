@@ -3,7 +3,7 @@ const config = {
   /** use this unique name to:
    * avoid resource name conflicts between multiple app deployments on the same AWS account
    */
-  appName: 'app-db',
+  appName: 'app-db-STUCK-STACK',
   productionStageName: 'prod',
   rootDomainName: 'app-db.org',
   rootDomainHostedZoneId: process.env.HOSTED_ZONE_ID || 'Z05567712LDUM8KYGNQNI',
@@ -17,4 +17,6 @@ export const awsResourceName = (appName, stage, resourceName) => `${appName}-${s
 /** construct a per-stage domain name */
 export const stageDomainName = (stage) => stage === config.productionStageName ? config.domainName : `${stage}.${config.rootDomainName}`;
 /** api.example.com or e.g. api-staging.example.com */
-export const stageDomainNameForAPI = (stage) => stage === config.productionStageName ? `api.${config.rootDomainName}` : `api-${stage}.${config.rootDomainName}`;
+export const stagePrefixForAPI = (stage) => stage === config.productionStageName ? `api` : `api-${stage}`;
+
+export const stageDomainNameForAPI = (stage) => `${stagePrefixForAPI(stage)}.${config.rootDomainName}`;

@@ -1,5 +1,6 @@
 import cdk from '@aws-cdk/core';
 import * as s3 from'@aws-cdk/aws-s3';
+import * as s3Deployment from '@aws-cdk/aws-s3-deployment';
 import * as dynamodb from '@aws-cdk/aws-dynamodb';
 import * as cognito from '@aws-cdk/aws-cognito';
 import * as lambda from '@aws-cdk/aws-lambda';
@@ -11,7 +12,7 @@ import * as route53Targets from '@aws-cdk/aws-route53-targets';
 import * as acm from '@aws-cdk/aws-certificatemanager';
 import path from 'path';
 
-import AppConfig, { awsResourceName, stageDomainNameForAPI } from '../cdk-app-config.js';
+import AppConfig, { awsResourceName, stageDomainNameForAPI, stagePrefixForAPI } from '../cdk-app-config.js';
 
 // TODO detect from build environment (duplicated in bin/cdk.js)
 const stage = 'prod';
@@ -32,6 +33,21 @@ export class AppDbStack extends cdk.Stack {
     // The code that defines your stack goes here
 
     const currentStageAPIDomainName = stageDomainNameForAPI(stage);
+
+    const websiteBucket = new s3.Bucket(this, awsName('website-bucket'), {
+      versioned: true,
+      // uncomment for auto-deleting the bucket after redeployment  
+      // removalPolicy: cdk.RemovalPolicy.DESTROY,
+      // autoDeleteObjects: true,// otherwise S3 won't delete non-empty buckets
+    });
+    const deployment = new s3Deployment.BucketDeployment(
+      this,
+      awsName('website-bucket-deployment'),
+      {
+        sources: [s3Deployment.Source.asset(path.resolve('./web'))],
+        destinationBucket: websiteBucket,
+      }
+    );
 
     const uploadsBucket = new s3.Bucket(this, awsName('uploads-bucket'), {
       versioned: true,
@@ -157,23 +173,25 @@ export class AppDbStack extends cdk.Stack {
     // if(!AppConfig.rootDomainHostedZoneId){
     // console.warn('missing required root domain zone id');
     //}
-    const parentHostingZone = route53.HostedZone.fromHostedZoneAttributes(this, awsName('parent-hosted-zone'), {
+    const rootHostingZone = route53.HostedZone.fromHostedZoneAttributes(this, awsName('parent-hosted-zone'), {
       hostedZoneId: AppConfig.rootDomainHostedZoneId,
       zoneName: AppConfig.rootDomainName,
     });
+    // fromLookup requires specifying aws account and region
     // I guess fromLookup is sufficient for zone delegation
-    // const parentHostingZone = route53.HostedZone.fromLookup(this, awsName('parent-zone'), {
+    // beware: fromLookup doesn't really "fetch" the zone or its values (ns, etc), just creates a mock object with id and name attributes
+    // const rootHostingZone = route53.HostedZone.fromLookup(this, awsName('parent-zone'), {
     //   domainName: AppConfig.rootDomainName
     // });
-    // TODO parentHostingZone doesn't seem to actually come from AWS describing resource, so the retrieve method must be changed
+    // TODO rootHostingZone doesn't seem to actually come from AWS describing resource, so the retrieve method must be changed
     // guide: https://github.com/aws/aws-cdk/issues/8776#issue-647025391
-    // undefined for now: console.log(parentHostingZone.nameServers, parentHostingZone.hostedZoneNameServers);
-    const hostedZoneForAPI = new route53.HostedZone(this, awsName('api-hosted-zone'), {
-      zoneName: currentStageAPIDomainName,
-    });
+    // undefined for now: console.log(rootHostingZone.nameServers, rootHostingZone.hostedZoneNameServers);
+    // const hostedZoneForAPI = new route53.HostedZone(this, awsName('api-hosted-zone'), {
+    //   zoneName: currentStageAPIDomainName,
+    // });
     // delegate the hosted zone to the parent hosted zone
     // const zoneDelegation = new route53.ZoneDelegationRecord(this, awsName('zone-delegation'), {
-    //   zone: parentHostingZone,
+    //   zone: rootHostingZone,
     //   // we assume the nameservers are present: https://github.com/aws/aws-cdk/issues/1847#issuecomment-466954662
     //   nameServers: hostedZoneForAPI.hostedZoneNameServers,
     // });
@@ -219,9 +237,17 @@ export class AppDbStack extends cdk.Stack {
     // var basePath = props.basePath != undefined? props.basePath : props.name;
     //     basePath = basePath.toLowerCase().replace(/[^a-zA-Z0-9]/g, '');
     //     domain.addBasePathMapping( this.api, { basePath: basePath });
+
+    const websiteCnameRecord = new route53.CnameRecord(this, awsName('website-cname-record'), {
+      zone: rootHostingZone,
+      recordName: stage === AppConfig.productionStageName ? stage : '',
+      domainName: websiteBucket.bucketWebsiteDomainName
+    });
+
     /** create a DNS A record for the domain */
     new route53.ARecord(this, awsName('api-domain-alias-record'), {
-      zone: hostedZoneForAPI,
+      zone: rootHostingZone,
+      recordName: stagePrefixForAPI(stage),
       target: route53.RecordTarget.fromAlias(new route53Targets.ApiGateway(api))
     });
 

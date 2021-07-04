@@ -27,7 +27,8 @@ The `cdk.json` file tells the CDK Toolkit how to execute your app. The build ste
  * to make use of your own domains, you have to create a hosted zone from AWS Console, point your external DNS to it, and delegate the CDK-created hosted zone to it.
  * create a new wildcard ACM Certificate and reference it using its Arn (so that CDK doesn't create a new certificate during every deployment), by setting the DOMAIN_CERTIFICATE_ARN env var
  * configure `ROOT_DOMAIN_HOSTED_ZONE_ID` env var (needed in lib/app-db-stack.js)
- * configure `DOMAIN_CERTIFICATE_ARN`
+ * configure `DOMAIN_CERTIFICATE_ARN` (from existing certificate)
+ * make sure `CDK_DEFAULT_ACCOUNT` and `CDK_DEFAULT_REGION` variables are correctly passed from CI/CD (from AWS credentials)
 
 # Gotchas
 
