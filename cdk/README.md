@@ -11,10 +11,11 @@ The `cdk.json` file tells the CDK Toolkit how to execute your app. The build ste
 # Features
 
  * per-stage deployments, domains (HTTPS) and resources (dev, staging, prod, etc)
- * Datomic-like dynamoDb database
  * API routes bound to domain names
+ * www.* for a separate website and app.* for web/mobile app version [in progress]
  * uploads to S3
  * CDN for static assets
+ * Datomic-like dynamoDb database
 
 # Getting started
 
@@ -68,6 +69,7 @@ Configure AWS credentials either in:
 
  * fix root website and api certificates
  * add domain name for CDN bucket
+ * add app-[stage].example.com domain and corresponding S3 bucket
  * 
  + add ARecords for api[-stage].example.com and delegate the NS to parent zone
  + fix zone delegation (commented, may need reversing zone arguments); right now, api.app-db.org is created but has separate, generated nameservers and isn't accessible.
