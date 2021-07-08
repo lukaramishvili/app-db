@@ -20,6 +20,7 @@ new AppDbStack(app, awsResourceName(AppConfig.appName, stage, 'stack'), {
 
   /* Uncomment the next line if you know exactly what Account and Region you
    * want to deploy the stack to. */
+    // Uncommented; Cannot use an S3 record alias in region-agnostic stacks.
     env: {
         account: process.env.CDK_DEFAULT_ACCOUNT || '534420866349',
         region: process.env.CDK_DEFAULT_REGION || 'eu-central-1',

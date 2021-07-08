@@ -12,13 +12,10 @@ import * as route53Targets from '@aws-cdk/aws-route53-targets';
 import * as acm from '@aws-cdk/aws-certificatemanager';
 import path from 'path';
 
-import AppConfig, { awsResourceName, stageDomainNameForAPI, stagePrefixForAPI } from '../cdk-app-config.js';
-
-// TODO detect from build environment (duplicated in bin/cdk.js)
-const stage = 'prod';
+import config, { awsResourceName, stageDomainName, stageDomainNameForAPI, stagePrefixForAPI } from '../cdk-app-config.js';
 
 /** build a project- and stage-specific AWS resource name */
-const awsName = (resourceName) => awsResourceName(AppConfig.appName, stage, resourceName);
+const awsName = (resourceName) => awsResourceName(config.appName, config.stage, resourceName);
 
 export class AppDbStack extends cdk.Stack {
   /**
@@ -30,17 +27,30 @@ export class AppDbStack extends cdk.Stack {
   constructor(scope, id, props) {
     super(scope, id, props);
 
-    // The code that defines your stack goes here
+    // code that defines the stack
 
-    const currentStageAPIDomainName = stageDomainNameForAPI(stage);
+    // example.org or e.g. staging.example.org
+    const currentStageDomainName = stageDomainName(config.stage);
+    // api.example.org or e.g. api-staging.example.org
+    const currentStageAPIDomainName = stageDomainNameForAPI(config.stage);
 
-    const websiteBucket = new s3.Bucket(this, awsName('website-bucket'), {
+    const stageSpecificBucketPolicy = (config.stage === config.productionStageName) ? {
+    } : {
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      autoDeleteObjects: true,// otherwise S3 won't delete non-empty buckets
+    };
+
+    // domain-bound bucket names must match with domain name
+    const websiteBucketName = currentStageDomainName;//awsName('website-bucket')
+    const websiteBucket = new s3.Bucket(this, websiteBucketName, {
+      bucketName: currentStageDomainName,
+      publicReadAccess: true,
+      websiteIndexDocument: "index.html",
       versioned: true,
-      // uncomment for auto-deleting the bucket after redeployment  
-      // removalPolicy: cdk.RemovalPolicy.DESTROY,
-      // autoDeleteObjects: true,// otherwise S3 won't delete non-empty buckets
+      // auto-deleting non-prod buckets after redeployment
+      ...stageSpecificBucketPolicy,
     });
-    const deployment = new s3Deployment.BucketDeployment(
+    const websiteS3Deployment = new s3Deployment.BucketDeployment(
       this,
       awsName('website-bucket-deployment'),
       {
@@ -51,9 +61,8 @@ export class AppDbStack extends cdk.Stack {
 
     const uploadsBucket = new s3.Bucket(this, awsName('uploads-bucket'), {
       versioned: true,
-      // uncomment for auto-deleting the bucket after redeployment  
-      // removalPolicy: cdk.RemovalPolicy.DESTROY,
-      // autoDeleteObjects: true,// otherwise S3 won't delete non-empty buckets
+      // auto-deleting non-prod buckets after redeployment
+      ...stageSpecificBucketPolicy,
     });
     // Create a distribution for a S3 bucket. In this case, a CDN for uploads.
     /** docs: https://docs.aws.amazon.com/cdk/api/latest/docs/aws-cloudfront-readme.html */
@@ -67,6 +76,8 @@ export class AppDbStack extends cdk.Stack {
     // create a CDN for assets (images, fonts, etc).
     const assetsBucket = new s3.Bucket(this, awsName('assets-bucket'), {
       versioned: true,
+      // auto-deleting non-prod buckets after redeployment
+      ...stageSpecificBucketPolicy,
     });
     new cloudfront.Distribution(this, awsName('assets-dist'), {
       defaultBehavior: { origin: new origins.S3Origin(assetsBucket) },
@@ -170,18 +181,18 @@ export class AppDbStack extends cdk.Stack {
      * Gotcha: HostedZone.fromHostedZoneId/Name doesn't actually get data from AWS, but creates a mock object: https://github.com/aws/aws-cdk/issues/8406#issuecomment-641052225
      * so HostedZone.fromHostedZoneAttributes is the most straightforward way to reference an existing hosted zone.
      */
-    // if(!AppConfig.rootDomainHostedZoneId){
+    // if(!config.rootDomainHostedZoneId){
     // console.warn('missing required root domain zone id');
     //}
     const rootHostingZone = route53.HostedZone.fromHostedZoneAttributes(this, awsName('parent-hosted-zone'), {
-      hostedZoneId: AppConfig.rootDomainHostedZoneId,
-      zoneName: AppConfig.rootDomainName,
+      hostedZoneId: config.rootDomainHostedZoneId,
+      zoneName: config.rootDomainName,
     });
     // fromLookup requires specifying aws account and region
     // I guess fromLookup is sufficient for zone delegation
     // beware: fromLookup doesn't really "fetch" the zone or its values (ns, etc), just creates a mock object with id and name attributes
     // const rootHostingZone = route53.HostedZone.fromLookup(this, awsName('parent-zone'), {
-    //   domainName: AppConfig.rootDomainName
+    //   domainName: config.rootDomainName
     // });
     // TODO rootHostingZone doesn't seem to actually come from AWS describing resource, so the retrieve method must be changed
     // guide: https://github.com/aws/aws-cdk/issues/8776#issue-647025391
@@ -196,9 +207,9 @@ export class AppDbStack extends cdk.Stack {
     //   nameServers: hostedZoneForAPI.hostedZoneNameServers,
     // });
     // retrieve existing validated certificate instead of creating it
-    const domainCertificate = acm.Certificate.fromCertificateArn(this, awsName('domain-certificate'), AppConfig.rootDomainCertificateArn);
+    const domainCertificate = acm.Certificate.fromCertificateArn(this, awsName('domain-certificate'), config.rootDomainCertificateArn);
     // const domainCertificate = new acm.Certificate(this, awsName('api-certificate'), {
-    //   domainName: AppConfig.rootDomainName,
+    //   domainName: config.rootDomainName,
     //   validation: acm.CertificateValidation.fromDns(hostedZoneForAPI),
     // });
 
@@ -216,11 +227,11 @@ export class AppDbStack extends cdk.Stack {
       // we can also specify `proxy: false` and define all the GET/POST/etc routes manually (see the #aws-lambda-backed-apis docs)
     });
     
-    /** read this for a guide to using domains: https://gregorypierce.medium.com/cdk-restapi-custom-domains-554175a4b1f6 */
+    /** read this for a time-saver guide to using domains: https://gregorypierce.medium.com/cdk-restapi-custom-domains-554175a4b1f6 */
     /** custom domain certificate docs: https://docs.aws.amazon.com/apigateway/latest/developerguide/how-to-custom-domains.html */
     /** we need to associate the API with the root domain first, otherwise CDK will not publish the template */
     // api.addDomainName(awsName('root-domain-name'), {
-    //   domainName: AppConfig.rootDomainName,
+    //   domainName: config.rootDomainName,
     //   certificate: domainCertificate,
     //   // endpointType: apigw.EndpointType.EDGE, // default is REGIONAL
     //   // securityPolicy: apigw.SecurityPolicy.TLS_1_2
@@ -238,20 +249,32 @@ export class AppDbStack extends cdk.Stack {
     //     basePath = basePath.toLowerCase().replace(/[^a-zA-Z0-9]/g, '');
     //     domain.addBasePathMapping( this.api, { basePath: basePath });
 
-    const websiteCnameRecord = new route53.CnameRecord(this, awsName('website-cname-record'), {
-      zone: rootHostingZone,
-      recordName: stage === AppConfig.productionStageName ? stage : '',
-      domainName: websiteBucket.bucketWebsiteDomainName
-    });
+    /** guide: https://www.codeproject.com/Tips/5270605/Use-AWS-CDK-to-deploy-a-S3-bucket-and-use-Route-53 */
+    /** quick reference for various record targets: https://docs.aws.amazon.com/cdk/api/latest/python/aws_cdk.aws_route53_targets/README.html */
+    if(config.stage === config.productionStageName){
+      // can't have cname on apex, so add A record
+      new route53.ARecord(this, awsName('website-a-record'), {
+        zone: rootHostingZone,
+        recordName: '',// '' means empty subdomain, so it means apex domain
+        target: route53.RecordTarget.fromAlias(new route53Targets.BucketWebsiteTarget(websiteBucket)),
+      });
+    } else {
+      new route53.CnameRecord(this, awsName('website-cname-record'), {
+        zone: rootHostingZone,
+        recordName: config.stage,// subdomain name
+        domainName: websiteBucket.bucketWebsiteDomainName
+      });
+    }
 
     /** create a DNS A record for the domain */
     new route53.ARecord(this, awsName('api-domain-alias-record'), {
       zone: rootHostingZone,
-      recordName: stagePrefixForAPI(stage),
-      target: route53.RecordTarget.fromAlias(new route53Targets.ApiGateway(api))
+      recordName: stagePrefixForAPI(config.stage),
+      target: route53.RecordTarget.fromAlias(new route53Targets.ApiGateway(api)),
     });
+      
 
-  }
+      }
 }
 
 // not with ES modules (enabled in package.json@type:"module"
