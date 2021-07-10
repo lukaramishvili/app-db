@@ -46,7 +46,7 @@ export class AppDbStack extends cdk.Stack {
       bucketName: currentStageDomainName,
       publicReadAccess: true,
       websiteIndexDocument: "index.html",
-      versioned: true,
+      versioned: false,// not needed for static built files
       // auto-deleting non-prod buckets after redeployment
       ...stageSpecificBucketPolicy,
     });
@@ -75,7 +75,7 @@ export class AppDbStack extends cdk.Stack {
     });
     // create a CDN for assets (images, fonts, etc).
     const assetsBucket = new s3.Bucket(this, awsName('assets-bucket'), {
-      versioned: true,
+      versioned: false,// not needed for static files
       // auto-deleting non-prod buckets after redeployment
       ...stageSpecificBucketPolicy,
     });

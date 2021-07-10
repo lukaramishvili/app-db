@@ -10,7 +10,10 @@ const config = {
   rootDomainName: 'app-db.org',
   rootDomainHostedZoneId: env('HOSTED_ZONE_ID') || 'Z05567712LDUM8KYGNQNI',
   rootDomainCertificateArn: env('DOMAIN_CERTIFICATE_ARN') || 'arn:aws:acm:eu-central-1:534420866349:certificate/e6bcdd32-3aa9-428a-90ae-7c456eba9f05',
-  stage: env('APP_STAGE') || 'dev',
+    stage: env('APP_STAGE') || 'dev',
+    //
+    accountId: env('CDK_DEFAULT_ACCOUNT') || '534420866349',
+    region: env('CDK_DEFAULT_REGION') || 'eu-central-1',
 };
 export default config;
 
