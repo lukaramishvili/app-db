@@ -1,3 +1,5 @@
+;;;;
+;;;; #### precursor to request validation/parsing in core.clj
 
 ;; we want serializable type checking (data structure described in pure data), no code, (so implementable in js for example), so we use malli as a backend ^H^H malli supports keyword validators like :string.
 

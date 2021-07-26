@@ -223,6 +223,7 @@ export class AppDbStack extends cdk.Stack {
       domainName: {
         domainName: currentStageAPIDomainName,
         certificate: domainCertificate,
+        endpointType: apigateway.EndpointType.EDGE,// default is REGIONAL
       },
       // we can also specify `proxy: false` and define all the GET/POST/etc routes manually (see the #aws-lambda-backed-apis docs)
     });

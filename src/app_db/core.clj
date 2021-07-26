@@ -1,25 +1,18 @@
 (ns app-db.core
-  (:require
-   [ring.adapter.jetty :as jetty]
-   [ring.middleware.json :refer [wrap-json-body wrap-json-response]]
-   [ring.util.response :refer [response]]
-   [malli.core :as m]
-   [malli.util :as mu]
-   [malli.error :as me]
-   [clj-http.client :as client]
-   ;; replace values in maps (used to replace :string with string? in dataform=>malli)
-   [clojure.zip :as zip]
-   ;; for parsing JSON (for now)
-   [cheshire.core :refer :all])
-  ;;(:use)
+  (:require [ring.adapter.jetty :as jetty]
+            [ring.middleware.json :refer [wrap-json-body wrap-json-response]]
+            [ring.util.response :refer [response]]
+            [malli.core :as m]
+            [malli.util :as mu]
+            [malli.error :as me]
+            [clj-http.client :as client]
+            ;; replace values in maps (used to replace :string with string? in dataform=>malli)
+            [clojure.zip :as zip]
+            ;; for parsing JSON (for now)
+            [cheshire.core :refer :all]
+            [app-db.domain :refer :all])
+  ;;(:use [app-db.domain])
   (:gen-class))
-
-;; we receive `actions` (declarative instructions) from clients
-;; we turn them into `instructions` (what the server should perform)
-
-(def Event [:map
-             [:action :string]
-             [:payload :map]])
 
 (def data (atom {}))
 
@@ -38,11 +31,14 @@
                  {:signature signature
                   :handler handler})))
 
-(defn describe-event [action]
-  (:signature (get @dispatchers action)))
+(defn get-dispatcher [action]
+  (get @dispatchers action))
 
-;; returns true or {:schema ...} m/explain results
+(defn describe-event [action]
+  (:signature (get-dispatcher action)))
+
 (defn validate-event [event]
+  "returns true or {:schema ...} m/explain results"
   (let [signature (describe-event (:action event))
         payload (:payload event)
         validate-payload (and signature (m/validator signature))]
@@ -51,11 +47,33 @@
                                  (me/humanize)))
         nil)))
 
-;; turns an action into an instruction
-(defn dispatch [action payload]
-  (let [dispatcher (get @dispatchers action)
-        handler (:handler dispatcher)]
-    (handler payload)))
+
+
+;; verb
+(defn process [event]
+  "turn actions into instructions"
+  (let [{action :action payload :payload} event
+        dispatcher (get-dispatcher action)]
+    ;; operation can be :dispatch (call function locally) or :other (e.g. RPC)
+    {:operation :dispatch
+     :dispatcher dispatcher
+     :payload payload}))
+
+
+(defn execute-instruction! [instruction]
+  "Execute the instruction (call corresponding dispatcher handler body, etc)"
+  (let [{operation :operation
+         dispatcher :dispatcher
+         payload :payload} instruction]
+    (cond (= operation :dispatch)
+          (let [handler (:handler dispatcher)]
+            (handler payload))
+          :else {:error (str "Unknown operation " operation)})))
+
+(defn dispatch! [event]
+  "Integration point"
+  (let [instruction (process event)]
+    (execute-instruction! instruction)))
 
 (defn update-data [path value]
   (reset! data
@@ -129,7 +147,7 @@
         payload (:payload event)
         validation-result (validate-event event)
         valid (true? validation-result)
-        result (and valid (dispatch action payload))
+        result (and valid (dispatch! event)); (and valid (dispatch! action payload))
         http-status (if valid 200 422)
         errors (if (not valid) validation-result)]
     {:status http-status
@@ -143,7 +161,7 @@
                               ;; errors ; TODO show real validation errors; even using `into` throws 'cannot JSON schema object'
                               {:errors errors}))})))
 
-(def server
+(defonce server
   ;; important: creating a var on handler using #', so that re-evaluating handler forms will get applied automatically without restarting the server.
   (jetty/run-jetty (wrap-json-body #'handler {:keywords? true :bigdecimals? true})
                    {:port 3000
@@ -152,7 +170,7 @@
 ;; (.stop server)
 
 (defn -main
-  "C-x C-l then call this from the repl to start the HTTP server."
+  "C-c C-l then call this from the repl to start the HTTP server."
   [& args]
   (println "Hello, World!"))
 
