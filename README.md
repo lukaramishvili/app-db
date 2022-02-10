@@ -3,6 +3,14 @@
 self-describing (pre-flight) FSM-based HTTP API server,
 (eventually) allowing easy handler definition (in data).
 
+Automatically configures itself on AWS CDK, incl.:
+- apex domain
+- subdomain for API
+- SSL certificate
+- API URLs
+- DynamoDB tables
+- S3 buckets
+
 see .plan for roadmap.
 
 ## Installation
