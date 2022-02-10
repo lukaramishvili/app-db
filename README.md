@@ -8,6 +8,7 @@ Automatically configures itself on AWS CDK, incl.:
 - subdomain for API
 - SSL certificate
 - API URLs
+- Lambdas
 - DynamoDB tables
 - S3 buckets
 
